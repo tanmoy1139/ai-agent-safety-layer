@@ -1,0 +1,10 @@
+flowchart LR
+    SYS["SYSTEM<br/>developer prompt"] --> IT["Instruction-trusted<br/>can authorize tool calls"]
+    USR["USER<br/>end-user message"] --> DT["Input-trusted<br/>contributes data,<br/>cannot trigger capabilities"]
+    DOC["RETRIEVED_DOC<br/>RAG / web fetch"] --> UT["Untrusted"]
+    TOOL["TOOL_OUTPUT<br/>prior tool results"] --> UT
+    GEN["AGENT_GENERATED<br/>prior LLM output"] --> UT
+    UNK["UNKNOWN"] --> UT
+    style IT fill:#1a3a2a,stroke:#4ade80,stroke-width:2px,color:#fff
+    style DT fill:#2a2a1a,stroke:#fbbf24,stroke-width:2px,color:#fff
+    style UT fill:#3a1a1a,stroke:#f87171,stroke-width:2px,color:#fff

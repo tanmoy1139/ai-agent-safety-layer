@@ -1,0 +1,8 @@
+flowchart TD
+    ERR(["Safety check crashes"]) --> Q{"Was fail_open<br/>explicitly requested?"}
+    Q -->|"no (default)"| BLOCK["Action DENIED<br/>error recorded in audit"]
+    Q -->|"yes"| W{"Is it a state-changing<br/>write action?"}
+    W -->|"yes"| BLOCK
+    W -->|"no, read-only"| ALLOW["Read permitted<br/>warning logged"]
+    style BLOCK fill:#3a1a1a,stroke:#f87171,stroke-width:2px,color:#fff
+    style ALLOW fill:#2a2a1a,stroke:#fbbf24,stroke-width:2px,color:#fff
