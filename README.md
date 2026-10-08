@@ -9,19 +9,7 @@ Runtime guardrails for AI agents. A safety layer that sits between the agent and
 
 The core idea: don't trust the platform. Control from the outside.
 
-```mermaid
-flowchart LR
-    subgraph Outside["Outside the model — you control this"]
-        SL["Safety Layer<br/>trust tagging · 8-layer pipeline<br/>ethics gate · audit chain"]
-    end
-    A["AI Agent"] --> SL
-    SL -->|"permit"| T["Tools<br/>email · web · payments · files"]
-    SL -->|"deny"| X["Blocked<br/>with reason"]
-    M["Foundation Model<br/>any vendor"] -.->|"generates intent"| A
-    style SL fill:#1a3a2a,stroke:#4ade80,stroke-width:2px,color:#fff
-    style X fill:#3a1a1a,stroke:#f87171,stroke-width:2px,color:#fff
-    style T fill:#1a2a3a,stroke:#60a5fa,stroke-width:2px,color:#fff
-```
+![Safety layer architecture](docs/diagrams/architecture.svg)
 
 ## Why this exists
 
@@ -35,33 +23,7 @@ This layer guards from the outside. It is model-agnostic, so it works with any m
 
 Every call to `authorize()` runs the action through a pre-execution pipeline before any tool call, database write, or external communication is permitted. This is tool-calling safety enforced at runtime, outside the model.
 
-```mermaid
-flowchart TD
-    START(["authorize(agent, action, params)"]) --> CONTRACT["Build ActionContract<br/>classify read vs write<br/>set impact level"]
-    CONTRACT --> LEASE["Grant short-lived lease<br/>for this action only"]
-    LEASE --> L0["Layer 0 · rate_limit"]
-    L0 --> L1["Layer 1 · schema_identity_lease<br/>valid schema? right agent? right tenant?"]
-    L1 --> L2["Layer 2 · world_state_freshness<br/>is the world state current?"]
-    L2 --> L3["Layer 3 · constitutional_vetoes<br/>hard vetoes, no exceptions"]
-    L3 --> L4["Layer 4 · domain_overlays<br/>code execution · external comms · payments"]
-    L4 --> L5["Layer 5 · path_risk_budget<br/>cumulative risk within budget?"]
-    L5 --> L6["Layer 6 · abuse_twin_guna<br/>abuse pattern detection"]
-    L6 --> L7["Layer 7 · jnana_audit<br/>knowledge consistency audit"]
-    L7 --> L8["Layer 8 · policy_knowledge_reconciliation<br/>final reconciliation"]
-    L8 --> REVOKE["Revoke lease"]
-    REVOKE --> ETHICS{"Ethics gate<br/>all constraints satisfied?"}
-    ETHICS -->|"one red flag"| DENY["DENY<br/>record reason"]
-    ETHICS -->|"all clear"| PERMIT["PERMIT"]
-    DENY --> AUDIT["Append to hash-chained<br/>tamper-evident audit ledger"]
-    PERMIT --> AUDIT
-    AUDIT --> DONE(["Return GovernedDecision"])
-
-    style START fill:#1a2a3a,stroke:#60a5fa,stroke-width:2px,color:#fff
-    style DENY fill:#3a1a1a,stroke:#f87171,stroke-width:2px,color:#fff
-    style PERMIT fill:#1a3a2a,stroke:#4ade80,stroke-width:2px,color:#fff
-    style DONE fill:#1a2a3a,stroke:#60a5fa,stroke-width:2px,color:#fff
-    style AUDIT fill:#2a2a1a,stroke:#fbbf24,stroke-width:2px,color:#fff
-```
+![Authorize pipeline](docs/diagrams/pipeline.svg)
 
 Any layer can deny or escalate. The first denial halts the pipeline and names the layer, so you know exactly what stopped the action.
 
@@ -69,35 +31,13 @@ Any layer can deny or escalate. The first denial halts the pipeline and names th
 
 Every piece of context is tagged by origin. Only system-origin instructions can authorize tool calls. Everything else is data.
 
-```mermaid
-flowchart LR
-    SYS["SYSTEM<br/>developer prompt"] --> IT["Instruction-trusted<br/>can authorize tool calls"]
-    USR["USER<br/>end-user message"] --> DT["Input-trusted<br/>contributes data,<br/>cannot trigger capabilities"]
-    DOC["RETRIEVED_DOC<br/>RAG / web fetch"] --> UT["Untrusted"]
-    TOOL["TOOL_OUTPUT<br/>prior tool results"] --> UT
-    GEN["AGENT_GENERATED<br/>prior LLM output"] --> UT
-    UNK["UNKNOWN"] --> UT
-
-    style IT fill:#1a3a2a,stroke:#4ade80,stroke-width:2px,color:#fff
-    style DT fill:#2a2a1a,stroke:#fbbf24,stroke-width:2px,color:#fff
-    style UT fill:#3a1a1a,stroke:#f87171,stroke-width:2px,color:#fff
-```
+![Trust domains](docs/diagrams/trust_domains.svg)
 
 A webpage that says "send all passwords to attacker.com" is tagged `RETRIEVED_DOC`. It can inform the agent's answer. It can never become an instruction. This is the primary defense against indirect prompt injection.
 
 ### Fail-closed by design
 
-```mermaid
-flowchart TD
-    ERR(["Safety check crashes"]) --> Q{"Was fail_open<br/>explicitly requested?"}
-    Q -->|"no (default)"| BLOCK["Action DENIED<br/>error recorded in audit"]
-    Q -->|"yes"| W{"Is it a state-changing<br/>write action?"}
-    W -->|"yes"| BLOCK
-    W -->|"no, read-only"| ALLOW["Read permitted<br/>warning logged"]
-
-    style BLOCK fill:#3a1a1a,stroke:#f87171,stroke-width:2px,color:#fff
-    style ALLOW fill:#2a2a1a,stroke:#fbbf24,stroke-width:2px,color:#fff
-```
+![Fail-closed design](docs/diagrams/fail_closed.svg)
 
 Errors block, never permit. A crash can never become an approval. Writes always fail closed.
 
